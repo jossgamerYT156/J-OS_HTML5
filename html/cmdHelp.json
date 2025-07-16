@@ -1,0 +1,22 @@
+{
+  "OPEN": {
+    "h1": "\"EXEC:\" Built-in Command — 'OPEN' REQ.ARG:'URI:'",
+    "p": "Usage: <strong>EXEC:OPEN URI:[URL]</strong><br>Opens a GUI window pointing to the specified URL."
+  },
+  "FM.Open": {
+    "h1": "File Manager — FM.Open",
+    "p": "Usage: <strong>EXEC:FM.Open</strong><br>Opens the J File Manager in a window."
+  },
+  "Terminal.JELF": {
+    "h1": "Terminal Window — Terminal.JELF",
+    "p": "Usage: <strong>EXEC:Terminal.JELF</strong><br>Launches the JELF Terminal in a new window."
+  },
+  "RST_SETUP": {
+    "h1": "Reset Setup — RST_SETUP",
+    "p": "Usage: <strong>EXEC:RST_SETUP</strong><br>Resets installation flags and reinitializes the installer."
+  },
+  "HLP": {
+    "h1": "Help — HLP",
+    "p": "Usage: <strong>EXEC:HLP</strong><br>Displays the generalized help message."
+  }
+}
