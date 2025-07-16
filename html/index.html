@@ -186,6 +186,7 @@ let cmdHelp = {};
         <strong>EXEC:Terminal.JELF</strong> - Executes The JELF Terminal<br>
         <strong>EXEC:RST_SETUP</strong> - Reinitializes J setup<br>
         <strong>EXEC:HLP</strong> - Shows this help menu<br>
+        <strong>GET:FOSS</strong> - Gives you the Source Code Link for this page and it's asociated iframes<br>
         <em>Try: EXEC:HLP OPEN:URI</em>
       </p>
     </div>`;
@@ -211,6 +212,13 @@ let cmdHelp = {};
           document.querySelector('#progressFill').style.width = "0%";
           startInstaller();
         }, 500);
+      } else if (command.startsWith('GET:FOSS')) {
+        cliOutput.innerHTML += `<div>
+        <h3 style="background-color: gray; color: white; font-size: 14px;">LiRA HTML5 Source Code</h3><br>
+          <a style="background-color: blue; color:white; decoration:underline;" href="https://github.com/jossgamerYT156/J-OS_HTML5_">GitHub Repo (Full Upadted Code)</a>
+        
+        </div>`
+        console.log("Yes, i added this, because people are probably not gonna be seeing this message.");
       } else {
         cliOutput.innerHTML += `<div>Unknown command</div>`;
       }
