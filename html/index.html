@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LiRA PC Boot Simulator</title>
+  <!-- Our SUPER COOL logo B-3 -->
+  <link rel="shortcut icon" href="/home/favicon.jpg" />
+  <!-- Lotta style data to hoard your RAM.-->
+  <style>
+    body {
+      background-color: black;
+      color: white;
+      font-family: monospace;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .active {
+      display: block;
+    }
+
+    .logo {
+      width: 120px;
+      margin-top: 40px;
+      border-radius: 10px;
+    }
+
+    .hex {
+      color: #0a0a0a;
+      font-size: 12px;
+    }
+
+    .setup-box {
+      background-color: #002244;
+      border: 2px solid #0f0f0f;
+      padding: 20px;
+      margin: 40px auto;
+      width: 80%;
+    }
+
+    .progress-bar {
+      width: 80%;
+      background-color: #333;
+      height: 20px;
+      margin: 10px auto;
+      border: 1px solid #777;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background-color: lightgreen;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .log-line {
+      color: lightgray;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    button {
+      background: none;
+      border: 1px solid lightgreen;
+      color: lightgreen;
+      padding: 10px;
+      font-family: monospace;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Phase 1: BIOS, yes, i had to simulate a BIOS. WHY? because i could. -->
+  <div id="bios" class="screen active">
+    <img src="coffe_loli.png" class="logo"><br>
+    <h2>LiRA SPC 0.0.1 Pub_REL</h2>
+    <!-- I bet my arse you didn't saw this on the webpage until you  checked the code.-->
+    <p class="hex">0x000:0x0000:0x0000:0x0000:0x8B00:0x0000:0x0000</p>
+    <p>LDS LLC. | LiRA Project</p>
+  </div>
+
+  <!-- Phase 2: POST, dunno what that is?... shame, check Wikipedia. -->
+  <div id="post" class="screen">
+    <p>POST: OK<br>Detected: ATA_0@Master - ATA_Disk:xten</p>
+    <p>Keyboard: USB: S0 : DEV1 : 0 : 1<br>Mouse: PS2: S0 : DEV2 : 0 : 1 - USB_Dev:xten</p>
+    <p>RAM: 16MB SODIMM | CPU: Intel Generic Celeron (1) - LCPU_Dev:xten</p>
+    <p>VGA Output Initialized @ PCI0:S0:1 - GPU_Generic_Intel:xten</p>
+  </div>
+
+  <!-- Phase 3: NT4-Style Installer, because i like wasting your time-->
+  <div id="installer" class="screen">
+    <div class="setup-box">
+      <h2>J-OS_HTM5REL Setup</h2>
+      <p>System Installing... Please wait</p>
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <div id="log" class="log-line">Initializing...</div>
+    </div>
+  </div>
+
+  <!-- Phase 4: Done... that's it, it "installed", now, you can use the CLI. -->
+  <div id="done" class="screen">
+    <h1 style="color: lightgreen;">Installation Complete</h1>
+    <p>J-OS_HTM5REL has been successfully installed.</p>
+    <button onclick="bootToShell()">[Initialize J]</button>
+  </div>
+
+  <!-- Final screen, Window Manager inspired of I3-WM and NT4, YES, this is a mock of WINDOWS, even though i hate windows.-->
+  <div id="ui" class="screen">
+    <div style="background-color: #003366; color: white; padding: 8px; text-align: left;">
+      J-OS Desktop Environment - <strong>Build: HTM5REL</strong>
+      <div id="j-shell" class="screen active"
+        style="background: black; color: lime; font-family: monospace; width: 100vw; height: 100vh; padding: 10px; overflow: hidden; position: relative; box-sizing: border-box;">
+
+        <div id="cli-container" style="height: 90%; overflow-y: auto; overflow-x: hidden; padding-right: 10px;">
+          <div id="cli-output"></div>
+        </div>
+
+        <div style="display: flex; align-items: center; border: solid, rgba(49, 241, 49, 0.409), 2px;">
+          <span>>></span>
+          <input id="cli-input"
+            style="flex: 1; background: black; color: lime; border: none; outline: none; font-family: monospace;"
+            autofocus>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
+</body>
+  <!--
+  YES! i know the script header shouldn't be here, BUT, if you don't like it,edit it.
+  i placed it here so i could edit the HTML elements more easily, that way i am not dealing with hundreds and hundreds of lines of scrolling to change ONE h1 element.
+  deal with it.
+  
+  -->
+<script>
+let cmdHelp = {};
+  const cliInput = document.getElementById('cli-input');
+  const cliOutput = document.getElementById('cli-output');
+  const shell = document.getElementById('j-shell');
+
+  let installInProgress = false; // flag to prevent overlap
+
+  cliInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      const command = cliInput.value.trim();
+      cliInput.value = '';
+      cliOutput.innerHTML += `<div>>> ${command}</div>`;
+
+      if (command.startsWith('EXEC:OPEN URI:')) {
+        const url = command.replace('EXEC:OPEN URI:', '').split(' ')[0];
+          createIframeWindow(url);
+          cliOutput.innerHTML += `<div>→ GUI Window created for ${url}</div>`;
+        } else if (command.startsWith('EXEC:HLP')) {
+    const parts = command.split(' ');
+    console.log('[Help Keys]', Object.keys(cmdHelp));
+    if (parts.length > 1) {
+      const subCmd = parts[1]; // use as-is
+      const help = cmdHelp[subCmd];
+      if (help) {
+        cliOutput.innerHTML += `
+      <div>
+        <h3 style="background-color: gray; color: white; font-size: 14px;">${help.h1}</h3>
+        <p>${help.p}</p>
+      </div>`;
+      } else {
+        cliOutput.innerHTML += `<div>No specific help available for: ${subCmd}</div>`;
+      }
+    } else {
+    // Only show this when NO specific command was passed
+      const helpText = `
+    <div>
+      <h3 style="background-color: gray; color: white; font-size: 14px;">"EXEC:" for builtin commands:</h3>
+      <p>
+        <strong>EXEC:OPEN URI:[URL]</strong> - Opens a window.<br>
+        <strong>EXEC:FM.Open</strong> - Opens The J-File Manager<br>
+        <strong>EXEC:Terminal.JELF</strong> - Executes The JELF Terminal<br>
+        <strong>EXEC:RST_SETUP</strong> - Reinitializes J setup<br>
+        <strong>EXEC:HLP</strong> - Shows this help menu<br>
+        <em>Try: EXEC:HLP OPEN:URI</em>
+      </p>
+    </div>`;
+        cliOutput.innerHTML += helpText;
+      }
+    } else if(command.startsWith('EXEC:FM.Open'))
+      {
+        cliOutput.innerHTML += `<div>>> JOPEN:File_Manager.JELF::${command}@Display:0</div>`;
+        createIframeWindow('https://lillydevstudios.neocities.org/J-OS/File%20Manager/');
+        
+      }
+      else if(command.startsWith('EXEC:Terminal.JELF')){
+        cliOutput.innerHTML += '<div>>> JOPEN:NewTerminal@Display:0<div>';
+        createIframeWindow('https://lillydevstudios.neocities.org/J-OS/terminal');
+      } else if (command.startsWith('EXEC:RST_SETUP')) {
+        cliOutput.innerHTML += `<div>>> Resetting setup process...</div>`;
+        localStorage.removeItem('isInstalled');
+        cliOutput.innerHTML += '<div> Setup Process Restarted, Initializing...</div>';
+
+        setTimeout(() => {
+          switchTo('installer');
+          document.querySelector('#log').textContent = "Bootloader: Reinitializing setup...";
+          document.querySelector('#progressFill').style.width = "0%";
+          startInstaller();
+        }, 500);
+      } else {
+        cliOutput.innerHTML += `<div>Unknown command</div>`;
+      }
+
+      cliOutput.scrollTop = cliOutput.scrollHeight;
+    }
+  });
+
+  function createIframeWindow(url, windowTitle = null) {
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.top = '100px';
+    container.style.left = '100px';
+    container.style.width = '400px';
+    container.style.height = '300px';
+    container.style.border = '2px outset gray';
+    container.style.background = '#fff';
+    container.style.zIndex = 999;
+    container.style.resize = 'both';
+    container.style.overflow = 'hidden';
+    container.style.boxShadow = '4px 4px 12px rgba(0,0,0,0.5)';
+
+    const titleBar = document.createElement('div');
+    titleBar.style.height = '25px';
+    titleBar.style.background = '#003366';
+    titleBar.style.color = 'white';
+    titleBar.style.cursor = 'move';
+    titleBar.style.display = 'flex';
+    titleBar.style.alignItems = 'center';
+    titleBar.style.justifyContent = 'space-between';
+    titleBar.style.padding = '0 5px';
+
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '[X]';
+    closeButton.style.background = 'none';
+    closeButton.style.border = 'none';
+    closeButton.style.color = 'white';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.fontFamily = 'monospace';
+    closeButton.style.fontSize = '12px';
+    closeButton.onclick = () => container.remove();
+
+    const titleText = document.createElement('span');
+    titleText.textContent = 'Loading...';
+    titleText.style.flexGrow = '1';
+    titleText.style.paddingLeft = '10px';
+
+    titleBar.appendChild(closeButton);
+    titleBar.appendChild(titleText);
+
+    let offsetX, offsetY, isDragging = false;
+    titleBar.addEventListener('mousedown', function (e) {
+        isDragging = true;
+        offsetX = e.clientX - container.offsetLeft;
+        offsetY = e.clientY - container.offsetTop;
+        container.style.zIndex = Date.now(); // bring to front
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (isDragging) {
+            let x = e.clientX - offsetX;
+            let y = e.clientY - offsetY;
+            const bounds = shell.getBoundingClientRect();
+            const maxX = bounds.width - container.offsetWidth;
+            const maxY = bounds.height - container.offsetHeight;
+            container.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+            container.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+        }
+    });
+
+    document.addEventListener('mouseup', () => isDragging = false);
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.width = '100%';
+    iframe.style.height = 'calc(100% - 25px)';
+    iframe.style.border = 'none';
+
+    // Try to update title after iframe loads
+    iframe.onload = () => {
+        let title = windowTitle;
+
+        try {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            const innerTitle = doc.querySelector('title')?.textContent?.trim();
+            if (!title && innerTitle) title = innerTitle;
+        } catch (e) {
+            console.warn("⚠️ Unable to access iframe title (cross-origin?):", e);
+        }
+
+        titleText.textContent = `Window: ${title || 'New Window'}`;
+    };
+
+    container.appendChild(titleBar);
+    container.appendChild(iframe);
+    shell.appendChild(container);
+
+    // Listen for window kill signal
+    window.addEventListener('message', function (e) {
+        if (e.data === 'JUI:HaltSelf') {
+            container.remove();
+        }
+    });
+}
+
+  const screens = {
+    bios: document.getElementById('bios'),
+    post: document.getElementById('post'),
+    installer: document.getElementById('installer'),
+    done: document.getElementById('done'),
+    ui: document.getElementById('ui')
+  };
+
+  function switchTo(screen) {
+    for (let key in screens) {
+      screens[key].classList.remove('active');
+    }
+    screens[screen].classList.add('active');
+  }
+
+  function startInstaller() {
+    if (installInProgress) return; // prevent duplicates
+    installInProgress = true;
+    switchTo('installer');
+    let progress = 0;
+    const fill = document.getElementById('progressFill');
+    const log = document.getElementById('log');
+
+    const interval = setInterval(() => {
+      if (progress >= 100) {
+        clearInterval(interval);
+        localStorage.setItem("isInstalled", "1");
+        installInProgress = false;
+        switchTo('done');
+        return;
+      }
+
+      progress += Math.floor(Math.random() * 2) + 2;
+      if (progress > 100) progress = 100;
+      fill.style.width = progress + "%";
+
+      const randomLog = files[Math.floor(Math.random() * files.length)];
+      log.textContent = randomLog;
+    }, 600);
+  }
+
+  function bootToShell() {
+    switchTo('installer'); // fake loading screen
+    document.querySelector('#log').textContent = "Bootloader: Starting J-OS Kernel...";
+    document.querySelector('#progressFill').style.width = "100%";
+
+    setTimeout(() => {
+      switchTo('ui');
+    }, 400);
+  }
+
+  const files = [
+    "Copying Sources...",
+    "Preparing Devices...",
+    "Setting Up Video...",
+    "Preparing I/O Tables",
+    "Writing Config Files",
+    "Writing File System Tables...",
+    "Please Wait..."
+  ];
+
+  // ✅ Everything controlled here
+  window.onload = () => {
+      // Load help file first
+  fetch('cmdHelp.json')
+    .then(res => res.json())
+    .then(data => {
+      cmdHelp = data;
+      console.log('✅ Help Commands Loaded:', Object.keys(cmdHelp));
+    })
+    .catch(err => {
+      console.error('⚠️ Failed to load command help file:', err);
+    });
+    
+    switchTo('bios');
+
+    setTimeout(() => {
+      switchTo('post');
+      const isInstalled = localStorage.getItem("isInstalled");
+
+      setTimeout(() => {
+        if (isInstalled === "1") {
+          bootToShell();
+        } else {
+          startInstaller();
+        }
+      }, 3000);
+    }, 2000);
+  };
+</script>
+</html>
