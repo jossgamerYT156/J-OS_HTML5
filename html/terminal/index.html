@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Yes, the commands are different
+  No, i didn't do it on purpose.
+  Yes, i will add everything later.
+  Yes, there's broken commands.
+  No, i didn't intended it to be broken.
+  -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="/home/favicon.jpg" />
+    <title>Terminal</title>
+    <style>
+        body {
+            background-color: rgba(39, 38, 38, 0.388);
+            color: rgb(50, 241, 50);
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="j-shell" class="screen active"
+        style="background: black; color: lime; font-family: monospace; width: 100vw; height: 100vh; padding: 10px; overflow: hidden; position: relative; box-sizing: border-box;">
+
+        <div id="cli-container" style="height: 90%; overflow-y: auto; overflow-x: hidden; padding-right: 10px;">
+            <div id="cli-output"></div>
+        </div>
+
+        <div style="display: flex; align-items: center; border:solid, rgba(50, 241, 50, 0.47),5px;">
+            <span>>></span>
+            <input id="cli-input"
+                style="flex: 1; background: black; color: lime; border: none; outline: none; font-family: monospace;"
+                autofocus>
+        </div>
+    </div>
+</body>
+<script>
+    const cliInput = document.getElementById('cli-input');
+    const cliOutput = document.getElementById('cli-output');
+    const shell = document.getElementById('j-shell');
+    cliInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            const command = cliInput.value.trim();
+            cliInput.value = '';
+            cliOutput.innerHTML += `<div>>> ${command}</div>`;
+
+            if (command.startsWith('EXEC:OPEN URI:')) {
+                const url = command.replace('EXEC:OPEN URI:', '').split(' ')[0];
+                createIframeWindow(url);
+                cliOutput.innerHTML += `<div>--> UI:Window:SRC:${url}</div>`;
+            }
+            else if (command.startsWith('EXEC:HLP')) {
+                const helpText = `
+<div>
+  <p>
+    <strong>EXEC:OPEN URI:[URL]</strong> — Opens a window.<br>
+    <strong>JUI:hlt.SLF - Closes The Current Terminal Window</strong>
+    <br>
+    <strong>EXEC:HLP</strong> — Shows this help message.
+  </p>
+</div>`;
+                cliOutput.innerHTML += helpText;
+
+
+            } if (command === 'JUI:hlt.SLF') {
+                window.parent.postMessage('JUI:HaltSelf', '*');
+                terminalOutput.innerHTML += `<div>> JUI:Halt Requested By User</div>`;
+            } else {
+                cliOutput.innerHTML += `<div>Unknown command</div>`;
+            }
+
+            cliOutput.scrollTop = cliOutput.scrollHeight;
+        }
+    });
+</script>
+</html>
