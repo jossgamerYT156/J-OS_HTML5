@@ -18,5 +18,9 @@
   "HLP": {
     "h1": "Help — HLP",
     "p": "Usage: <strong>EXEC:HLP</strong><br>Displays the generalized help message."
+  },
+  "GET:FOSS":{
+    "h1":"Get Source Code - GET:FOSS",
+    "p":"Usage: <strong>GET:FOSS</strong><br>It gives you a link for you to check the source code of this webpage"
   }
 }
