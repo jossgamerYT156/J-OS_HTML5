@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- I know i could've made the FS a different file, but... where's the fun on that?-->
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="shortcut icon" href="/home/favicon.jpg" />
+    <title>J File Manager</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        #file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .file-item {
+            border: 1px solid lime;
+            background: #111;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            user-select: none;
+        }
+
+        .file-item:hover {
+            background: #222;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>J File Manager | 0.0.1</h1>
+    <p>@ATA0 : MASTER</p>
+    <div id="file-grid"></div>
+
+    <div id="editor-modal"
+        style="display:none;position:fixed;top:10%;left:10%;width:80%;height:80%;background:#222;color:#fff;padding:20px;box-sizing:border-box;z-index:2000;overflow:auto;">
+        <h2 id="editor-filename"></h2>
+        <textarea id="editor-text"
+            style="width:100%;height:70%;background:#111;color:#eee;font-family: monospace;font-size:14px;padding:10px;box-sizing:border-box;"></textarea>
+        <br />
+        <button onclick="saveFileContent()">Save</button>
+        <button onclick="closeEditor()">Cancel</button>
+    </div>
+    <script>
+        let fs = {
+            root: {
+                type: "dir",
+                children: {
+                    System: {
+                        type: "dir",
+                        children: {
+                            Sys: {
+                                type: "dir",
+                                children: {
+                                    "boot:xten": { type: "file" },
+                                    "sys:conf": { type: "file" },
+                                    HCTRL: {
+                                        type: "dir",
+                                        children: {
+                                            "USB_KBD:hctrl": { type: "file" },
+                                            "ps2_drv:hctrl": { type: "file" }
+                                        }
+                                    },
+                                    "config.sys": { type: "config" }
+                                }
+                            }
+                        }
+                    },
+                    Usr: {
+                        type: "dir",
+                        children: {
+                            PUBLIC: {
+                                type: "dir",
+                                children: {
+                                    "dirinf::inf": { type: "file" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        let currentPath = ["root"];
+
+        function getNodeAtPath(pathArray) {
+            let node = fs;
+            for (let i = 0; i < pathArray.length; i++) {
+                const key = pathArray[i];
+                if (i === 0) {
+                    if (!node[key]) return null;
+                    node = node[key];
+                } else {
+                    if (!node.children || !node.children[key]) return null;
+                    node = node.children[key];
+                }
+            }
+            return node;
+        }
+
+        window.onload = () => {
+            const saved = localStorage.getItem("fs");
+            if (saved) {
+                fs = JSON.parse(saved);
+            } else {
+                localStorage.setItem("fs", JSON.stringify(fs));
+            }
+            renderFileTree();
+        };
+
+        function renderFileTree() {
+            const grid = document.getElementById("file-grid");
+            grid.innerHTML = '';
+
+            const currentNode = getNodeAtPath(currentPath);
+            if (!currentNode || !currentNode.children) return;
+
+            // Back button
+            if (currentPath.length > 1) {
+                const back = document.createElement('div');
+                back.className = 'file-item';
+                back.textContent = '↩️ ..';
+                back.onclick = () => {
+                    currentPath.pop();
+                    renderFileTree();
+                };
+                grid.appendChild(back);
+            }
+
+            // Show items
+            for (let name in currentNode.children) {
+                const item = currentNode.children[name];
+                const el = document.createElement("div");
+                el.className = "file-item";
+                el.textContent = `[${item.type}] ${name}`;
+                el.dataset.name = name;
+                el.dataset.type = item.type;
+
+                // Left click: cd into directories
+                if (item.type === 'dir') {
+                    el.onclick = () => {
+                        currentPath.push(name);
+                        renderFileTree();
+                    };
+                }
+
+                grid.appendChild(el);
+            }
+        }
+
+        // Disable default context menu everywhere
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Context menu DOM element
+        const contextMenu = document.createElement('div');
+        contextMenu.style.position = 'absolute';
+        contextMenu.style.background = '#222';
+        contextMenu.style.color = '#fff';
+        contextMenu.style.border = '1px solid #555';
+        contextMenu.style.padding = '5px';
+        contextMenu.style.display = 'none';
+        contextMenu.style.zIndex = 1000;
+        document.body.appendChild(contextMenu);
+
+        // Show context menu on right click anywhere
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+
+            contextMenu.innerHTML = '';
+
+            // Check if right-clicked on a file item
+            let target = e.target;
+            while (target && !target.classList?.contains('file-item')) {
+                target = target.parentElement;
+            }
+
+            const name = target?.dataset.name || null;
+            const type = target?.dataset.type || null;
+
+            // Compose full path
+            const path = [...currentPath];
+            if (name) path.push(name);
+            const joinedPath = path.join("/");
+
+            // New item submenu always visible
+            const createSub = document.createElement('div');
+            createSub.innerHTML = `<b>New</b><br>
+    <button onclick="newItem('${joinedPath}', 'file')">File</button>
+    <button onclick="newItem('${joinedPath}', 'dir')">Directory</button>
+    <button onclick="newItem('${joinedPath}', 'config')">ConfigFile</button>
+    <hr>`;
+            contextMenu.appendChild(createSub);
+
+            // Show Delete/Rename/Info only if clicked on an existing item
+            if (type) {
+                const del = document.createElement('button');
+                del.textContent = "Delete";
+                del.onclick = () => {
+                    deleteItem(joinedPath);
+                    contextMenu.style.display = "none";
+                };
+
+                const ren = document.createElement('button');
+                ren.textContent = "Rename";
+                ren.onclick = () => {
+                    renameItem(joinedPath);
+                    contextMenu.style.display = "none";
+                };
+
+                const info = document.createElement('button');
+                info.textContent = "Show Info";
+                info.onclick = () => {
+                    showInfo(joinedPath);
+                    contextMenu.style.display = "none";
+                };
+
+                contextMenu.appendChild(del);
+                contextMenu.appendChild(ren);
+                contextMenu.appendChild(info);
+            }
+            if (type && (type === 'file' || type === 'config')) {
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = "Download";
+                downloadBtn.onclick = () => {
+                    downloadFile(joinedPath);
+                    contextMenu.style.display = "none";
+                };
+                contextMenu.appendChild(downloadBtn);
+                const editBtn = document.createElement('button');
+                editBtn.textContent = "Edit";
+                editBtn.onclick = () => {
+                    openEditor(joinedPath);
+                    contextMenu.style.display = 'none';
+                };
+                contextMenu.appendChild(editBtn);
+            }
+
+            // Position and show menu
+            contextMenu.style.top = e.clientY + "px";
+            contextMenu.style.left = e.clientX + "px";
+            contextMenu.style.display = "block";
+        });
+
+        // Hide menu when clicking anywhere else
+        document.addEventListener("click", () => {
+            contextMenu.style.display = "none";
+        });
+
+        // Convert path string to node and name
+        function pathToNode(path) {
+            const parts = path.split("/").slice(1);
+            let current = fs.root;
+            for (let i = 0; i < parts.length - 1; i++) {
+                current = current.children[parts[i]];
+            }
+            return [current, parts[parts.length - 1]];
+        }
+
+        function newItem(path, type) {
+            const name = prompt(`New ${type} name:`);
+            if (!name) return;
+
+            // Split and check if the last element is a file (i.e., not a valid dir)
+            const pathParts = path.split("/");
+            let testNode = getNodeAtPath(pathParts);
+
+            // If target path is a file, chop the last part off to get parent dir
+            if (!testNode || testNode.type !== "dir") {
+                pathParts.pop(); // remove file name
+                testNode = getNodeAtPath(pathParts);
+            }
+
+            if (!testNode || testNode.type !== "dir") {
+                alert("❌ Invalid directory target for new item.");
+                return;
+            }
+
+            testNode.children = testNode.children || {};
+            testNode.children[name] = {
+                type,
+                ...(type === 'dir' ? { children: {} } : { content: '' })
+            };
+
+            saveAndReload();
+
+            if (type !== 'dir') {
+                const newPath = pathParts.join("/") + '/' + name;
+
+                // Delay to ensure file system and DOM are updated
+                setTimeout(() => {
+                    const node = getNodeAtPath(newPath.split('/'));
+                    if (node) openEditor(newPath);
+                    else console.warn("Editor skipped — file wasn't found at", newPath);
+                }, 10);
+            }
+        }
+
+
+
+        function deleteItem(path) {
+            const [parent, name] = pathToNode(path);
+            delete parent.children[name];
+            saveAndReload();
+        }
+
+        function renameItem(path) {
+            const [parent, name] = pathToNode(path);
+            const newName = prompt("New name:", name);
+            if (!newName || newName === name) return;
+            parent.children[newName] = parent.children[name];
+            delete parent.children[name];
+            saveAndReload();
+        }
+
+        function showInfo(path) {
+            const [parent, name] = pathToNode(path);
+            const item = parent.children[name];
+            alert(`Type: ${item.type}\nPath: ${path}`);
+        }
+
+        function saveAndReload() {
+            localStorage.setItem("fs", JSON.stringify(fs));
+            renderFileTree();
+        }
+        function downloadFile(path) {
+            const filename = path.split('/').map(p => p.replace(/:/g, '.')).join('_');
+            const node = getNodeAtPath(path.split('/'));
+            const content = node && node.content !== undefined ? node.content : `Empty file: ${filename}`;
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            URL.revokeObjectURL(url);
+        }
+
+        let editingPath = null;
+
+        function openEditor(path) {
+            editingPath = path;
+            const node = getNodeAtPath(path.split('/'));
+            if (!node) return alert("File not found!");
+
+            document.getElementById('editor-filename').textContent = path;
+            document.getElementById('editor-text').value = node.content || '';
+            document.getElementById('editor-modal').style.display = 'block';
+        }
+
+        function closeEditor() {
+            editingPath = null;
+            document.getElementById('editor-modal').style.display = 'none';
+        }
+
+        function saveFileContent() {
+            if (!editingPath) return;
+            const node = getNodeAtPath(editingPath.split('/'));
+            if (!node) return alert("File not found!");
+
+            node.content = document.getElementById('editor-text').value;
+            saveAndReload();
+            closeEditor();
+        }
+
+    </script>
+</body>
+</html>
