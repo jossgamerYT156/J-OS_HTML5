@@ -1,5 +1,5 @@
 # J-OS_HTML5_
-> A HTML5 UI Inspired on Windows NT4 for [LDS](lillydevstudios.neocities.org/J-OS/)' website!
+> A HTML5 UI Inspired on Windows NT4 for [LDS](https://lillydevstudios.neocities.org/J-OS/)' website!
 
 ## Features:
 - Basic CLI
